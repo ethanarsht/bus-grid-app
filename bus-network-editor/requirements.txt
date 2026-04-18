@@ -1,0 +1,11 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+sqlalchemy==2.0.30
+aiofiles==23.2.1
+python-multipart==0.0.9
+gtfs-segments==2.1.7
+geopandas==0.14.4
+shapely==2.0.4
+pyproj==3.6.1
+numpy<2.0
+pandas<3.0

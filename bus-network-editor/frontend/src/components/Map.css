@@ -1,0 +1,143 @@
+.map-container {
+  flex: 1;
+  margin-left: 200px;
+}
+
+/* Override MapLibre popup chrome */
+.stop-popup-wrapper .maplibregl-popup-content {
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #e0e0e0;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.stop-popup-wrapper .maplibregl-popup-tip {
+  border-top-color: #1a1a2e;
+}
+
+.stop-popup-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.stop-popup-id {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.stop-popup-routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.route-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.stop-popup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.popup-btn {
+  flex: 1;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.popup-btn:hover {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+.popup-btn-remove:hover {
+  background: rgba(244, 67, 54, 0.3);
+  border-color: #f44336;
+  color: #ff6b6b;
+}
+
+/* Pair popup layout */
+.pair-popup-stops {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pair-popup-stop {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.pair-popup-stop .stop-popup-id {
+  margin-bottom: 6px;
+}
+
+.pair-popup-stop .stop-popup-actions {
+  margin-top: 8px;
+}
+
+.popup-section-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 10px 0 8px;
+}
+
+.popup-delete-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.popup-delete-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.popup-btn-delete-line {
+  flex: none;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border-color: var(--route-color);
+  color: var(--route-color);
+}
+
+.popup-btn-delete-line:hover {
+  background: color-mix(in srgb, var(--route-color) 20%, transparent);
+  color: #fff;
+}
+
+.pair-popup-direction {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00c9b1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}

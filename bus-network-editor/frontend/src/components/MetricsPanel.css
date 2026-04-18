@@ -1,0 +1,157 @@
+.metrics-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background: rgba(20, 20, 40, 0.92);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 14px 16px;
+  z-index: 10;
+  color: #e0e0e0;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+}
+
+.metric-controls {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.metric-controls-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.metric-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metric-controls-field-label {
+  font-size: 11px;
+  color: #aaa;
+  flex: 1;
+}
+
+.metric-controls-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-controls-input {
+  width: 60px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 12px;
+  padding: 4px 6px;
+  outline: none;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+  text-align: right;
+}
+
+.metric-controls-input::-webkit-outer-spin-button,
+.metric-controls-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.metric-controls-input:focus { border-color: rgba(255,255,255,0.3); }
+
+.metric-controls-input::placeholder { color: #444; }
+
+.metric-controls-unit {
+  font-size: 11px;
+  color: #666;
+}
+
+.metrics-header {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.metric-row {
+  margin-bottom: 7px;
+}
+
+.metric-label {
+  color: #aaa;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.metric-values {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.metric-baseline { color: #888; }
+.metric-arrow { color: #555; }
+.metric-projected { color: #ccc; font-weight: 500; }
+
+.delta-good { color: #4caf50; font-weight: 600; }
+.delta-bad  { color: #f44336; font-weight: 600; }
+.delta-neutral { color: #aaa; }
+
+.affected-routes {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #999;
+  word-break: break-all;
+}
+
+.metrics-footnote {
+  margin-top: 8px;
+  font-size: 10px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.metrics-empty {
+  color: #666;
+  font-style: italic;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.metrics-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.metrics-actions button {
+  flex: 1;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  color: #ccc;
+  padding: 6px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.metrics-actions button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+}
+
+.metrics-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -263,8 +263,8 @@ export default function Map({
     map.getSource('merged-segs')?.setData({ type: 'FeatureCollection', features: mergedSegFeats })
 
     if (!cids || cids.length === 0) {
-      map.setFilter('projected-stops-layer', ['==', 1, 0])
-      map.setFilter('projected-segments-layer', ['==', 1, 0])
+      map.setFilter('projected-stops-layer', ['boolean', false])
+      map.setFilter('projected-segments-layer', ['boolean', false])
     } else {
       const ids = ['literal', cids]
       map.setFilter('projected-stops-layer', ['in', ['get', 'stop_id'], ids])

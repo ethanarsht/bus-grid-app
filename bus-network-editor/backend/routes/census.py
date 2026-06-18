@@ -1,10 +1,11 @@
 import json
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
-_DATA_DIR = Path(__file__).parent.parent / "data"
+_DATA_DIR = Path(os.environ.get("CITY_DATA_DIR", Path(__file__).parent.parent / "data"))
 
 
 @router.get("/census/{city_id}")

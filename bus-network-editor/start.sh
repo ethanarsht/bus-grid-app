@@ -14,7 +14,7 @@ if [ -n "$DATA_DOWNLOAD_URL" ]; then
     if [ "$DISK_VERSION" != "$CURRENT_VERSION" ]; then
         echo "City data version mismatch (disk=$DISK_VERSION, want=$CURRENT_VERSION) — downloading..."
         mkdir -p "$CITY_DATA_DIR"
-        curl -L "$DATA_DOWNLOAD_URL" | tar xz -C "$CITY_DATA_DIR"
+        curl -L "$DATA_DOWNLOAD_URL" | tar xz --strip-components=1 -C "$CITY_DATA_DIR"
         echo "$CURRENT_VERSION" > "$VERSION_FILE"
         echo "City data ready (version $CURRENT_VERSION)."
     else

@@ -259,8 +259,9 @@ def _load_city(city_id: str, file_prefix: str) -> dict | None:
     }
 
 
-# Discover available cities at startup without loading data
+# Discover available cities and compute lightweight counts at startup
 _city_prefixes: dict[str, str] = {}
+_city_counts: dict[str, dict] = {}
 for _stops_path in sorted(_DATA_DIR.glob("*_stops.geojson")):
     _city_id = _stops_path.stem[: -len("_stops")]
     _prefix = _CITY_FILE_OVERRIDES.get(_city_id, _city_id)
@@ -268,6 +269,12 @@ for _stops_path in sorted(_DATA_DIR.glob("*_stops.geojson")):
     _rts = _DATA_DIR / f"{_prefix}_routes.json"
     if _stops_path.exists() and _seg.exists() and _rts.exists():
         _city_prefixes[_city_id] = _prefix
+        with open(_stops_path) as _f:
+            _stop_count = len(json.load(_f).get("features", []))
+        with open(_rts) as _f:
+            _route_data = json.load(_f)
+            _route_count = len(_route_data) if isinstance(_route_data, list) else len(_route_data.get("features", []))
+        _city_counts[_city_id] = {"stop_count": _stop_count, "route_count": _route_count}
 
 _city_cache: dict[str, dict] = {}
 
@@ -286,6 +293,10 @@ def get_city_baseline(city_id: str) -> dict | None:
 
 def available_city_ids() -> list[str]:
     return list(_city_prefixes.keys())
+
+
+def get_city_counts(city_id: str) -> dict:
+    return _city_counts.get(city_id, {"stop_count": 0, "route_count": 0})
 
 
 # Legacy module-level aliases — populated on first access

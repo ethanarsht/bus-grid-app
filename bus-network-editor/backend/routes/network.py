@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from backend.data_store import get_city_baseline, available_city_ids
+from backend.data_store import get_city_baseline, available_city_ids, get_city_counts
 
 router = APIRouter()
 
@@ -46,14 +46,14 @@ def get_cities():
     cities = []
     for city_id in available_city_ids():
         meta = _CITY_META.get(city_id)
-        data = get_city_baseline(city_id)
+        counts = get_city_counts(city_id)
         cities.append({
             "city_id": city_id,
             "name": meta["name"] if meta else _city_display_name(city_id),
             "description": meta["description"] if meta else "",
             "type": "official",
-            "stop_count": len(data["stops"]["features"]),
-            "route_count": len(data["routes"]),
+            "stop_count": counts["stop_count"],
+            "route_count": counts["route_count"],
         })
     return cities
 

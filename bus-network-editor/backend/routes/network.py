@@ -46,6 +46,8 @@ def get_cities():
     cities = []
     for city_id in available_city_ids():
         meta = _CITY_META.get(city_id)
+        if meta is None:
+            continue
         counts = get_city_counts(city_id)
         cities.append({
             "city_id": city_id,

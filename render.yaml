@@ -4,8 +4,33 @@ services:
     runtime: docker
     dockerfilePath: ./bus-network-editor/Dockerfile
     dockerContext: ./bus-network-editor
+    branch: main
     disk:
       name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////data/bus_network.db
+      - key: CITY_DATA_DIR
+        value: /data/cities
+      - key: DATA_DOWNLOAD_URL
+        sync: false
+      - key: DATA_VERSION
+        sync: false
+
+  - type: web
+    name: bus-network-editor-staging
+    runtime: docker
+    dockerfilePath: ./bus-network-editor/Dockerfile
+    dockerContext: ./bus-network-editor
+    branch: staging
+    disk:
+      name: data-staging
       mountPath: /data
       sizeGB: 1
     envVars:

@@ -19,3 +19,5 @@ services:
         value: /data/cities
       - key: DATA_DOWNLOAD_URL
         sync: false
+      - key: DATA_VERSION
+        sync: false

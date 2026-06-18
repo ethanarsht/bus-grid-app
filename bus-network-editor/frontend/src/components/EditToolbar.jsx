@@ -35,12 +35,23 @@ export default function EditToolbar({
   onBulkRandomRemove,
   onSpacingAlgorithm,
   availableRoutes,
+  selectedRoutes,
+  onToggleRoute,
+  onSelectAllRoutes,
+  onSelectNoRoutes,
   baselineSegments,
   editMode,
   onBeginAddStop,
   onCancelAdd,
+  onSetEditMode,
+  isPublished,
+  onPublish,
+  selectedStopIds,
+  onClearSelection,
 }) {
   const [removeFraction, setRemoveFraction] = useState(0.1)
+  const [routeSearch, setRouteSearch] = useState('')
+  const [linesExpanded, setLinesExpanded] = useState(true)
   const [applying, setApplying] = useState(false)
   const [spacingMin, setSpacingMin] = useState(350)
   const [spacingMax, setSpacingMax] = useState(400)
@@ -119,17 +130,43 @@ export default function EditToolbar({
           placeholder="Scenario name…"
           aria-label="Scenario name"
         />
+        {onPublish && (
+          <button
+            className={`sidebar-btn publish-btn ${isPublished ? 'published' : ''}`}
+            onClick={onPublish}
+            style={{ marginTop: 8 }}
+          >
+            {isPublished ? 'Unpublish' : 'Publish'}
+          </button>
+        )}
       </div>
 
       <div className="sidebar-section">
-        <button
-          className="sidebar-btn"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo last edit"
-        >
+        <button className="sidebar-btn" onClick={onUndo} disabled={!canUndo} title="Undo last edit">
           Undo
         </button>
+      </div>
+
+      <div className="sidebar-section">
+        <label className="sidebar-label">Selection</label>
+        <div className="sidebar-selection-row">
+          <button
+            className={`sidebar-btn sidebar-btn-select ${editMode === 'box-select' ? 'active' : ''}`}
+            onClick={() => onSetEditMode(editMode === 'box-select' ? 'select' : 'box-select')}
+            title="Box select stops"
+          >⬚ Box</button>
+          <button
+            className={`sidebar-btn sidebar-btn-select ${editMode === 'lasso-select' ? 'active' : ''}`}
+            onClick={() => onSetEditMode(editMode === 'lasso-select' ? 'select' : 'lasso-select')}
+            title="Lasso select stops"
+          >⌖ Lasso</button>
+        </div>
+        {selectedStopIds?.size > 0 && (
+          <div className="sidebar-selection-info">
+            <span className="sidebar-selection-count">{selectedStopIds.size.toLocaleString()} stops selected</span>
+            <button className="sidebar-selection-clear" onClick={onClearSelection}>✕</button>
+          </div>
+        )}
       </div>
 
       <div className="sidebar-section">
@@ -210,6 +247,43 @@ export default function EditToolbar({
               <button className="sidebar-btn" onClick={handleCancelAddFlow}>Cancel</button>
             </div>
           </div>
+        )}
+      </div>
+
+      <div className="sidebar-divider" />
+
+      <div className="sidebar-section sidebar-lines-section">
+        <button className="sidebar-lines-toggle" onClick={() => setLinesExpanded(e => !e)}>
+          <span className="sidebar-label">Lines</span>
+        </button>
+        {linesExpanded && (
+          <>
+            <div className="sidebar-lines-actions">
+              <button className="sidebar-lines-toggle-btn" onClick={onSelectAllRoutes}>All</button>
+              <button className="sidebar-lines-toggle-btn" onClick={onSelectNoRoutes}>None</button>
+            </div>
+            <input
+              className="sidebar-route-search"
+              type="text"
+              placeholder="Search…"
+              value={routeSearch}
+              onChange={e => setRouteSearch(e.target.value)}
+            />
+            <div className="sidebar-route-list">
+              {availableRoutes
+                .filter(r => !routeSearch || r.toLowerCase().includes(routeSearch.toLowerCase()))
+                .map(r => (
+                  <label key={r} className="sidebar-route-item">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoutes?.has(r) ?? true}
+                      onChange={() => onToggleRoute(r)}
+                    />
+                    <span>{r}</span>
+                  </label>
+                ))}
+            </div>
+          </>
         )}
       </div>
 

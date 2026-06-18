@@ -12,14 +12,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Build frontend
+# Copy backend first so the frontend build can write into backend/static/
+COPY backend/ backend/
+
+# Build frontend (vite outputs to ../backend/static per vite.config.js)
 COPY frontend/ frontend/
 RUN cd frontend && npm ci && npm run build
-
-# Copy backend
-COPY backend/ backend/
 
 # Expose port
 EXPOSE 10000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "10000"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

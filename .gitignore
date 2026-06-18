@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Node
+node_modules/
+.vite/
+
+# Database (local only — prod lives on Render's persistent disk)
+*.db
+*.sqlite
+*.sqlite3
+
+# City data files (too large for git — upload to Render persistent disk manually)
+bus-network-editor/backend/data/
+
+# Local dev / editor
+.claude/
+.env
+.env.local
+*.local
+
+# OS
+.DS_Store
+Thumbs.db

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 class CreateScenarioRequest(BaseModel):
     name: str
+    city_id: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -81,7 +82,9 @@ class DeltaMetrics(BaseModel):
 
 
 class ProjectionResponse(BaseModel):
-    stops: dict[str, Any]       # GeoJSON FeatureCollection
-    segments: dict[str, Any]    # GeoJSON FeatureCollection
+    stops: dict[str, Any]
+    segments: dict[str, Any]
     metrics: DeltaMetrics
-    changed_stop_ids: list[str] = []  # stop_ids that were added, moved, or removed
+    changed_stop_ids: list[str] = []
+    name: Optional[str] = None
+    is_published: bool = False

@@ -1,6 +1,6 @@
 """
-Module-level cache for the baseline GeoJSON data.
-Loaded once at startup, never modified.
+Module-level cache for baseline GeoJSON data.
+Loaded once at startup per city, never modified.
 """
 
 import json
@@ -9,23 +9,18 @@ from pathlib import Path
 
 _DATA_DIR = Path(__file__).parent / "data"
 
-_stops_path = _DATA_DIR / "chicago_stops.geojson"
-_segments_path = _DATA_DIR / "chicago_segments.geojson"
-_routes_path = _DATA_DIR / "chicago_routes.json"
+# Explicit overrides for legacy or non-standard filename prefixes
+_CITY_FILE_OVERRIDES: dict[str, str] = {}
 
 
-def _load_json(path: Path) -> dict:
+def _load_json(path: Path) -> dict | list:
     if not path.exists():
-        raise RuntimeError(
-            f"Data file not found: {path}\n"
-            "Run scripts/prepare_chicago.py first to generate the baseline data."
-        )
+        raise RuntimeError(f"Data file not found: {path}")
     with open(path) as f:
         return json.load(f)
 
 
 def _bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Forward bearing in degrees (0 = N, 90 = E, 180 = S, 270 = W)."""
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     return (math.degrees(math.atan2(dlon, dlat)) + 360) % 360
@@ -47,12 +42,6 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict[str, str]]:
-    """
-    Find pairs of stops with the same name that serve the same route in
-    opposite directions and are within 300 m of each other.
-    Returns (pairs, stop_headings) where stop_headings maps stop_id → heading label.
-    """
-    # Collect stop metadata
     stop_coords: dict[str, tuple[float, float]] = {}
     stop_names: dict[str, str] = {}
     stop_routes: dict[str, list] = {}
@@ -60,12 +49,10 @@ def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict
         p = feat["properties"]
         coords = feat["geometry"]["coordinates"]
         sid = p["stop_id"]
-        stop_coords[sid] = (coords[1], coords[0])   # (lat, lon)
+        stop_coords[sid] = (coords[1], coords[0])
         stop_names[sid] = p["stop_name"]
         stop_routes[sid] = list(p.get("routes", []))
 
-    # Per-stop: which (route, direction) combos does it serve?
-    # Per-stop outgoing segment bearings for each (route, direction)
     stop_dir_routes: dict[str, set] = {}
     outgoing_bearings: dict[tuple, list[float]] = {}
 
@@ -88,13 +75,11 @@ def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict
         bs = outgoing_bearings.get((sid, rid, did), [])
         if bs:
             return _bearing_label(sum(bs) / len(bs))
-        # Terminus: reverse the incoming bearing
         bs_rev = outgoing_bearings.get((sid, rid, 1 - did), [])
         if bs_rev:
             return _bearing_label((sum(bs_rev) / len(bs_rev) + 180) % 360)
         return "Unknown"
 
-    # Group stops by name
     name_groups: dict[str, list[str]] = {}
     for sid, name in stop_names.items():
         name_groups.setdefault(name, []).append(sid)
@@ -155,8 +140,6 @@ def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict
                     "lat": (lat0 + lat1) / 2,
                 })
 
-    # Compute a dominant heading for every stop (used for single-stop popups).
-    # Aggregate all outgoing bearings per stop across routes/directions.
     stop_bearings: dict[str, list[float]] = {}
     for (sid, rid, did), bs_list in outgoing_bearings.items():
         stop_bearings.setdefault(sid, []).extend(bs_list)
@@ -168,7 +151,6 @@ def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict
                 sum(stop_bearings[sid]) / len(stop_bearings[sid])
             )
         else:
-            # Terminus: reverse any incoming bearing we can find
             for (rid, did) in stop_dir_routes.get(sid, set()):
                 bs_rev = outgoing_bearings.get((sid, rid, 1 - did), [])
                 if bs_rev:
@@ -181,25 +163,11 @@ def _compute_stop_pairs(stops_fc: dict, segs_fc: dict) -> tuple[list[dict], dict
 
 
 def _compute_merged_segments(segs_fc: dict, stop_pairs: list[dict]) -> dict:
-    """
-    Find bidirectional corridors between adjacent stop pairs.
-    A corridor exists when segments run A1→B1 AND B2→A2 (opposite directions)
-    where A1/A2 are one pair and B1/B2 are another.
-
-    Side-effect: annotates individual segment features in segs_fc with
-    {'merged': True} so the frontend can hide them in favour of the merged line.
-
-    Returns a GeoJSON FeatureCollection of merged segment lines (pair-midpoint
-    to pair-midpoint).
-    """
-    # stop_id → pair dict
     stop_to_pair: dict[str, dict] = {}
     for pair in stop_pairs:
         stop_to_pair[str(pair["stop_id_0"])] = pair
         stop_to_pair[str(pair["stop_id_1"])] = pair
 
-    # Accumulate traversals for each canonical pair-pair corridor
-    # canonical key: (min_pair_id, max_pair_id)
     corridors: dict[tuple, dict] = {}
 
     for feat in segs_fc["features"]:
@@ -217,18 +185,16 @@ def _compute_merged_segments(segs_fc: dict, stop_pairs: list[dict]) -> dict:
             corridors[key] = {
                 "pair_a": pair1 if pid1 == key[0] else pair2,
                 "pair_b": pair2 if pid2 == key[1] else pair1,
-                "ab": 0,  # traversals going pair_a → pair_b
-                "ba": 0,  # traversals going pair_b → pair_a
+                "ab": 0,
+                "ba": 0,
             }
         if pid1 == key[0]:
             corridors[key]["ab"] += p.get("traversals", 1)
         else:
             corridors[key]["ba"] += p.get("traversals", 1)
 
-    # Only corridors with traffic in BOTH directions are truly merged
     bidirectional = {k for k, v in corridors.items() if v["ab"] > 0 and v["ba"] > 0}
 
-    # Annotate individual segments that belong to a bidirectional corridor
     for feat in segs_fc["features"]:
         p = feat["properties"]
         s1, s2 = str(p["stop_id1"]), str(p["stop_id2"])
@@ -240,7 +206,6 @@ def _compute_merged_segments(segs_fc: dict, stop_pairs: list[dict]) -> dict:
             if key in bidirectional:
                 p["merged"] = True
 
-    # Build merged-segment GeoJSON (pair-midpoint → pair-midpoint)
     features = []
     for key in bidirectional:
         c = corridors[key]
@@ -264,15 +229,57 @@ def _compute_merged_segments(segs_fc: dict, stop_pairs: list[dict]) -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
-baseline_stops_fc: dict = _load_json(_stops_path)
-baseline_segments_fc: dict = _load_json(_segments_path)
-routes_list: list = _load_json(_routes_path)
-baseline_stop_pairs, _stop_headings = _compute_stop_pairs(baseline_stops_fc, baseline_segments_fc)
+def _load_city(city_id: str, file_prefix: str) -> dict | None:
+    stops_path = _DATA_DIR / f"{file_prefix}_stops.geojson"
+    segments_path = _DATA_DIR / f"{file_prefix}_segments.geojson"
+    routes_path = _DATA_DIR / f"{file_prefix}_routes.json"
 
-# Annotate each stop feature with its dominant heading direction
-for _feat in baseline_stops_fc["features"]:
-    _sid = _feat["properties"]["stop_id"]
-    _feat["properties"]["heading"] = _stop_headings.get(str(_sid), "")
+    if not (stops_path.exists() and segments_path.exists() and routes_path.exists()):
+        return None
 
-# Compute merged bidirectional corridor segments (also annotates baseline_segments_fc)
-baseline_merged_segments_fc: dict = _compute_merged_segments(baseline_segments_fc, baseline_stop_pairs)
+    stops_fc = _load_json(stops_path)
+    segments_fc = _load_json(segments_path)
+    routes = _load_json(routes_path)
+
+    stop_pairs, stop_headings = _compute_stop_pairs(stops_fc, segments_fc)
+
+    for feat in stops_fc["features"]:
+        sid = feat["properties"]["stop_id"]
+        feat["properties"]["heading"] = stop_headings.get(str(sid), "")
+
+    merged_segments_fc = _compute_merged_segments(segments_fc, stop_pairs)
+
+    return {
+        "stops": stops_fc,
+        "segments": segments_fc,
+        "routes": routes,
+        "stop_pairs": stop_pairs,
+        "merged_segments": merged_segments_fc,
+    }
+
+
+# Auto-discover all cities from *_stops.geojson files in data dir
+_city_cache: dict[str, dict] = {}
+for _stops_path in sorted(_DATA_DIR.glob("*_stops.geojson")):
+    _city_id = _stops_path.stem[: -len("_stops")]
+    _prefix = _CITY_FILE_OVERRIDES.get(_city_id, _city_id)
+    _data = _load_city(_city_id, _prefix)
+    if _data is not None:
+        _city_cache[_city_id] = _data
+
+
+def get_city_baseline(city_id: str) -> dict | None:
+    return _city_cache.get(city_id)
+
+
+def available_city_ids() -> list[str]:
+    return list(_city_cache.keys())
+
+
+# Legacy module-level aliases for chicago_cta (used by projection service)
+_chicago = _city_cache.get("chicago_cta", {})
+baseline_stops_fc: dict = _chicago.get("stops", {"type": "FeatureCollection", "features": []})
+baseline_segments_fc: dict = _chicago.get("segments", {"type": "FeatureCollection", "features": []})
+routes_list: list = _chicago.get("routes", [])
+baseline_stop_pairs: list = _chicago.get("stop_pairs", [])
+baseline_merged_segments_fc: dict = _chicago.get("merged_segments", {"type": "FeatureCollection", "features": []})

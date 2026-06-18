@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import create_tables
-from backend.routes import network, scenarios
+from backend.routes import network, scenarios, auth, census
 
 app = FastAPI(title="Bus Network Editor API")
 
@@ -24,6 +24,8 @@ create_tables()
 # API routes
 app.include_router(network.router, prefix="/api")
 app.include_router(scenarios.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(census.router, prefix="/api")
 
 # Serve the built React frontend (if it exists)
 _static_dir = Path(__file__).parent / "static"

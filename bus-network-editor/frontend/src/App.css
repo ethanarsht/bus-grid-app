@@ -7,6 +7,25 @@
 }
 
 .title-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title-bar-back {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.title-bar-back:hover { color: #aaa; }
+
+.title-bar {
   position: relative;
   z-index: 50;
   background: #1a1a2e;
@@ -46,6 +65,31 @@
   align-items: center;
   font-size: 14px;
 }
+
+.guest-banner {
+  position: relative;
+  z-index: 49;
+  background: #7c5c00;
+  color: #ffe082;
+  padding: 6px 20px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.guest-banner-signin {
+  background: none;
+  border: none;
+  color: #ffe082;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.guest-banner-signin:hover { color: #fff; }
 
 .error-banner button {
   background: none;

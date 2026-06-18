@@ -1,17 +1,57 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Map from './components/Map.jsx'
 import EditToolbar from './components/EditToolbar.jsx'
 import MetricsPanel from './components/MetricsPanel.jsx'
-import { getBaseline, createScenario, getProjection, addEdit, addEditsBatch, undoLastEdit } from './api.js'
+import PopulationPanel from './components/PopulationPanel.jsx'
+import { getBaseline, getProjection, addEdit, addEditsBatch, undoLastEdit, updateScenario, publishScenario, getCensusData } from './api.js'
+import { useAuth } from './contexts/AuthContext.jsx'
+import AuthModal from './components/AuthModal.jsx'
 import { runSpacingAlgorithm } from './spacingAlgorithm.js'
 import './App.css'
 
+const R_EARTH = 6378137
+
+function computePopulationServed(tractFeatures, stopsFC, radiusM) {
+  if (!tractFeatures?.length || !stopsFC?.features?.length) return null
+  const stops = stopsFC.features.map(f => {
+    const [lng, lat] = f.geometry.coordinates
+    return [lat * Math.PI / 180, lng * Math.PI / 180, Math.cos(lat * Math.PI / 180)]
+  })
+  let served = 0, total = 0
+  for (const tract of tractFeatures) {
+    const pop = tract.properties.population
+    if (!pop || pop <= 0) continue
+    total += pop
+    // Use centroid stored as property (geometry is now a polygon for density overlay)
+    const tLng = tract.properties.centroid_lng ?? tract.geometry.coordinates[0]
+    const tLat = tract.properties.centroid_lat ?? tract.geometry.coordinates[1]
+    const tLr = tLat * Math.PI / 180
+    const tLnr = tLng * Math.PI / 180
+    const cosTLat = Math.cos(tLr)
+    let isServed = false
+    for (const [sLr, sLnr, cosSLat] of stops) {
+      const dlat = tLr - sLr
+      const dlng = tLnr - sLnr
+      const sdlat = Math.sin(dlat / 2)
+      const sdlng = Math.sin(dlng / 2)
+      const a = sdlat * sdlat + cosSLat * cosTLat * sdlng * sdlng
+      if (2 * R_EARTH * Math.asin(Math.sqrt(a)) <= radiusM) { isServed = true; break }
+    }
+    if (isServed) served += pop
+  }
+  return { served, total, fraction: total > 0 ? served / total : 0 }
+}
+
 export default function App() {
-  const [baseline, setBaseline] = useState(null)          // { stops, segments }
-  const [projection, setProjection] = useState(null)      // ProjectionResponse
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  const [baseline, setBaseline] = useState(null)
+  const [projection, setProjection] = useState(null)
   const [scenarioId, setScenarioId] = useState(null)
-  const [scenarioName, setScenarioName] = useState('New Scenario')
-  const [editMode, setEditMode] = useState('select')       // 'select' | 'move'
+  const [scenarioName, setScenarioName] = useState('New Map')
+  const [editMode, setEditMode] = useState('select')
   const [selectedStop, setSelectedStop] = useState(null)
   const [canUndo, setCanUndo] = useState(false)
   const [error, setError] = useState(null)
@@ -19,6 +59,15 @@ export default function App() {
   const [addStopRoute, setAddStopRoute] = useState(null)
   const [addStopDirection, setAddStopDirection] = useState(null)
   const [addStopTerminus, setAddStopTerminus] = useState(false)
+  const [isPublished, setIsPublished] = useState(false)
+  const [selectedRoutes, setSelectedRoutes] = useState(null)
+  const [selectedStopIds, setSelectedStopIds] = useState(null)
+  const [censusData, setCensusData] = useState(null)
+  const [catchmentRadiusM, setCatchmentRadiusM] = useState(400)
+  const [showCatchment, setShowCatchment] = useState(false)
+  const { user } = useAuth()
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const scopedStopsRef = useRef(null)
 
   const scenarioNameRef = useRef(scenarioName)
   scenarioNameRef.current = scenarioName
@@ -29,36 +78,32 @@ export default function App() {
       if (e.key === 'Escape') {
         setEditMode('select')
         setSelectedStop(null)
+        setSelectedStopIds(null)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // Load baseline and initialise scenario on mount (or from URL param)
+  // Require a scenario= param — if missing, send back to landing
   useEffect(() => {
+    const sid = searchParams.get('scenario')
+    const cityId = searchParams.get('city') || 'chicago_cta'
+    if (!sid) { navigate('/'); return }
+
     async function init() {
       try {
-        const data = await getBaseline()
+        const [data, initial, census] = await Promise.all([
+          getBaseline(cityId),
+          getProjection(sid),
+          getCensusData(cityId).catch(() => null),
+        ])
         setBaseline(data)
-
-        // Check for ?scenario= in URL
-        const params = new URLSearchParams(window.location.search)
-        const sid = params.get('scenario')
-        let resolvedId
-        if (sid) {
-          resolvedId = sid
-          setScenarioId(sid)
-        } else {
-          // Create a fresh scenario
-          const { scenario_id } = await createScenario(scenarioNameRef.current)
-          resolvedId = scenario_id
-          setScenarioId(scenario_id)
-        }
-
-        // Load baseline metrics immediately so the panel is populated on launch
-        const initial = await getProjection(resolvedId)
+        setScenarioId(sid)
+        setScenarioName(initial.name ?? 'New Map')
+        setIsPublished(initial.is_published ?? false)
         setProjection(initial)
+        setCensusData(census)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -66,7 +111,7 @@ export default function App() {
       }
     }
     init()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
   // Edit actions
@@ -156,7 +201,7 @@ export default function App() {
 
   async function handleSpacingAlgorithm(minM, maxM) {
     if (!scenarioId || !projectedStops || !baseline) return
-    const stopIds = runSpacingAlgorithm(projectedStops, baseline.segments, minM, maxM)
+    const stopIds = runSpacingAlgorithm(scopedStopsRef.current ?? projectedStops, baseline.segments, minM, maxM)
     if (stopIds.length === 0) return
     const edits = stopIds.map(stop_id => ({ op: 'REMOVE', stop_id }))
     try {
@@ -170,7 +215,7 @@ export default function App() {
 
   async function handleBulkRandomRemove(fraction) {
     if (!scenarioId || !projectedStops) return
-    const allIds = projectedStops.features.map(f => f.properties.stop_id)
+    const allIds = (scopedStopsRef.current ?? projectedStops).features.map(f => f.properties.stop_id)
     const count = Math.round(fraction * allIds.length)
     if (count === 0) return
     // Fisher-Yates partial shuffle to pick `count` ids
@@ -189,6 +234,15 @@ export default function App() {
     }
   }
 
+  function handleSelectionChange(stopIds) {
+    setSelectedStopIds(stopIds.size > 0 ? stopIds : null)
+    setEditMode('select')
+  }
+
+  function handleClearSelection() {
+    setSelectedStopIds(null)
+  }
+
   async function handleUndo() {
     if (!scenarioId) return
     try {
@@ -200,9 +254,23 @@ export default function App() {
     }
   }
 
-  async function handleScenarioNameChange(name) {
+  async function handlePublish() {
+    if (!scenarioId) return
+    try {
+      const result = await publishScenario(scenarioId)
+      setIsPublished(result.is_published)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const nameDebounceRef = useRef(null)
+  function handleScenarioNameChange(name) {
     setScenarioName(name)
-    // TODO: persist name change via PATCH /api/scenarios/:id when implemented
+    if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current)
+    nameDebounceRef.current = setTimeout(() => {
+      if (scenarioId) updateScenario(scenarioId, { name }).catch(() => {})
+    }, 600)
   }
 
   // -------------------------------------------------------------------------
@@ -216,6 +284,33 @@ export default function App() {
       })
     : []
 
+  // Reset selection when a new baseline loads
+  useEffect(() => {
+    if (availableRoutes.length > 0) setSelectedRoutes(new Set(availableRoutes))
+  }, [baseline]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeRoutes = selectedRoutes ?? new Set(availableRoutes)
+  const allRoutesSelected = !selectedRoutes || selectedRoutes.size === availableRoutes.length
+
+  function filterStops(fc) {
+    if (!fc || allRoutesSelected) return fc
+    return { ...fc, features: fc.features.filter(f => (f.properties.routes ?? []).some(r => activeRoutes.has(String(r)))) }
+  }
+  function filterSegments(fc) {
+    if (!fc || allRoutesSelected) return fc
+    return { ...fc, features: fc.features.filter(f => activeRoutes.has(String(f.properties.route_id))) }
+  }
+
+  function handleToggleRoute(routeId) {
+    setSelectedRoutes(prev => {
+      const next = new Set(prev ?? availableRoutes)
+      if (next.has(routeId)) next.delete(routeId); else next.add(routeId)
+      return next
+    })
+  }
+  function handleSelectAllRoutes() { setSelectedRoutes(new Set(availableRoutes)) }
+  function handleSelectNoRoutes() { setSelectedRoutes(new Set()) }
+
   const projectedStops = projection?.stops ?? null
   const projectedSegments = projection?.segments ?? null
   const metrics = projection?.metrics ?? null
@@ -223,26 +318,93 @@ export default function App() {
   const stopPairs = baseline?.stop_pairs ?? []
   const mergedSegments = baseline?.merged_segments ?? null
 
+  const visBaselineStops = filterStops(baseline?.stops)
+  const visBaselineSegments = filterSegments(baseline?.segments)
+  const visProjectedStops = filterStops(projectedStops)
+  const visProjectedSegments = filterSegments(projectedSegments)
+
+  // When a geo selection is active, restrict map to only selected stops/segments
+  function filterToSelection(fc, isStops) {
+    if (!fc || !selectedStopIds) return fc
+    if (isStops) {
+      return { ...fc, features: fc.features.filter(f => selectedStopIds.has(String(f.properties.stop_id))) }
+    }
+    return { ...fc, features: fc.features.filter(f =>
+      selectedStopIds.has(String(f.properties.stop_id1)) && selectedStopIds.has(String(f.properties.stop_id2))
+    )}
+  }
+  const mapBaselineStops    = filterToSelection(visBaselineStops, true)
+  const mapBaselineSegments = filterToSelection(visBaselineSegments, false)
+  const mapProjectedStops   = filterToSelection(visProjectedStops, true)
+  scopedStopsRef.current = mapProjectedStops
+  const mapProjectedSegments = filterToSelection(visProjectedSegments, false)
+  const mapStopPairs = selectedStopIds
+    ? (stopPairs ?? []).filter(p =>
+        selectedStopIds.has(String(p.stop_id_0)) && selectedStopIds.has(String(p.stop_id_1)))
+    : stopPairs
+  // Center latitude for catchment circle radius approximation (per-city constant)
+  const centerLat = (() => {
+    const feats = baseline?.stops?.features
+    if (!feats?.length) return 40
+    return feats.reduce((s, f) => s + f.geometry.coordinates[1], 0) / feats.length
+  })()
+
+  // Full current stop set (all routes, no geo filter) — used for catchment overlay + population metric
+  const catchmentStops = projection?.stops ?? baseline?.stops ?? null
+
+  // Population served by the full current network at the given catchment radius
+  const populationStats = censusData && catchmentStops
+    ? computePopulationServed(censusData.features, catchmentStops, catchmentRadiusM)
+    : null
+
+  const mapMergedSegments = mergedSegments && selectedStopIds
+    ? { ...mergedSegments, features: mergedSegments.features.filter(f => {
+        const pairA = (stopPairs ?? []).find(p => p.pair_id === f.properties.pair_a_id)
+        const pairB = (stopPairs ?? []).find(p => p.pair_id === f.properties.pair_b_id)
+        return pairA && pairB &&
+          selectedStopIds.has(String(pairA.stop_id_0)) && selectedStopIds.has(String(pairA.stop_id_1)) &&
+          selectedStopIds.has(String(pairB.stop_id_0)) && selectedStopIds.has(String(pairB.stop_id_1))
+      })}
+    : mergedSegments
+
   return (
     <div className="app">
-      <div className="title-bar">Ethan's Retransiting App</div>
-      {loading && <div className="loading-overlay">Loading Chicago CTA network…</div>}
+      <div className="title-bar">
+        <button className="title-bar-back" onClick={() => navigate('/')}>← Maps</button>
+        <span>Ethan's Retransiting App</span>
+      </div>
+      {!user && !loading && (
+        <div className="guest-banner">
+          Guest mode — this map won't appear in My Maps.{' '}
+          <button className="guest-banner-signin" onClick={() => setShowAuthModal(true)}>Sign in to save</button>
+        </div>
+      )}
+      {loading && <div className="loading-overlay">Loading network…</div>}
       {error && <div className="error-banner">Error: {error} <button onClick={() => setError(null)}>✕</button></div>}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
       <Map
-        baselineStops={baseline?.stops}
-        baselineSegments={baseline?.segments}
-        projectedStops={projectedStops}
-        projectedSegments={projectedSegments}
+        baselineStops={mapBaselineStops}
+        baselineSegments={mapBaselineSegments}
+        projectedStops={mapProjectedStops}
+        projectedSegments={mapProjectedSegments}
         changedStopIds={changedStopIds}
-        stopPairs={stopPairs}
-        mergedSegments={mergedSegments}
+        stopPairs={mapStopPairs}
+        mergedSegments={mapMergedSegments}
+        activeRoutes={allRoutesSelected ? null : activeRoutes}
         editMode={editMode}
         onStopClick={handleStopClick}
         onRemove={handleRemove}
         onMove={handleMove}
         onMapClick={handleMapClick}
         onDeleteLine={handleDeleteLine}
+        onSelectionChange={handleSelectionChange}
+        selectedStopIds={selectedStopIds}
+        catchmentStops={catchmentStops}
+        censusData={censusData}
+        showCatchment={showCatchment}
+        catchmentRadiusM={catchmentRadiusM}
+        centerLat={centerLat}
       />
 
       <EditToolbar
@@ -250,22 +412,42 @@ export default function App() {
         onScenarioNameChange={handleScenarioNameChange}
         onUndo={handleUndo}
         canUndo={canUndo}
-        projectedStopCount={projectedStops?.features?.length ?? 0}
+        projectedStopCount={mapProjectedStops?.features?.length ?? 0}
         onBulkRandomRemove={handleBulkRandomRemove}
         onSpacingAlgorithm={handleSpacingAlgorithm}
         availableRoutes={availableRoutes}
+        selectedRoutes={activeRoutes}
+        onToggleRoute={handleToggleRoute}
+        onSelectAllRoutes={handleSelectAllRoutes}
+        onSelectNoRoutes={handleSelectNoRoutes}
         baselineSegments={baseline?.segments}
         editMode={editMode}
         onBeginAddStop={handleBeginAddStop}
         onCancelAdd={handleCancelAdd}
+        onSetEditMode={setEditMode}
+        isPublished={isPublished}
+        onPublish={user ? handlePublish : null}
+        selectedStopIds={selectedStopIds}
+        onClearSelection={handleClearSelection}
+      />
+
+      <PopulationPanel
+        populationStats={populationStats}
+        catchmentRadiusM={catchmentRadiusM}
+        onCatchmentRadiusChange={setCatchmentRadiusM}
+        showCatchment={showCatchment}
+        onToggleCatchment={() => setShowCatchment(v => !v)}
+        hasCensusData={!!censusData}
       />
 
       <MetricsPanel
         metrics={metrics}
         scenarioId={scenarioId}
         scenarioName={scenarioName}
-        baselineSegments={baseline?.segments}
-        projectedSegments={projectedSegments}
+        baselineSegments={visBaselineSegments}
+        projectedSegments={visProjectedSegments}
+        selectedStopIds={selectedStopIds}
+        lineFilterActive={!allRoutesSelected}
       />
     </div>
   )

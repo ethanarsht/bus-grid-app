@@ -1,0 +1,175 @@
+.pop-panel {
+  position: fixed;
+  top: 130px;
+  right: 20px;
+  width: 240px;
+  background: rgba(20, 20, 40, 0.92);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 14px 16px;
+  z-index: 10;
+  color: #e0e0e0;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pop-panel-header {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.pop-panel-label {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.pop-panel-radius-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pop-panel-radius-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pop-panel-input {
+  width: 60px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 12px;
+  padding: 4px 6px;
+  outline: none;
+  text-align: right;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+
+.pop-panel-input::-webkit-outer-spin-button,
+.pop-panel-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.pop-panel-input:focus { border-color: rgba(255,255,255,0.3); }
+
+.pop-panel-unit {
+  font-size: 11px;
+  color: #666;
+}
+
+.pop-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pop-gauge-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pop-gauge-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a9eff, #7c9ef5);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.pop-gauge-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pop-gauge-pct {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.pop-gauge-sub {
+  font-size: 11px;
+  color: #888;
+}
+
+.pop-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.pop-stat-label {
+  color: #888;
+}
+
+.pop-stat-value {
+  color: #ccc;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.pop-stat-unserved {
+  color: #f47878;
+}
+
+.pop-panel-empty {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.pop-panel-empty code {
+  font-style: normal;
+  font-size: 10px;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #aec4ff;
+}
+
+.pop-panel-actions {
+  padding-top: 2px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.pop-overlay-btn {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: #aaa;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.pop-overlay-btn:hover:not(:disabled) {
+  background: rgba(124,158,245,0.15);
+  border-color: rgba(124,158,245,0.4);
+  color: #aec4ff;
+}
+
+.pop-overlay-btn.active {
+  background: rgba(124,158,245,0.2);
+  border-color: rgba(124,158,245,0.5);
+  color: #aec4ff;
+}
+
+.pop-overlay-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

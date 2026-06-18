@@ -1,0 +1,63 @@
+.auth-modal {
+  width: 380px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.auth-form input {
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.auth-form input:focus {
+  border-color: #7c9ef5;
+}
+
+.auth-error {
+  color: #fc8181;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: rgba(252, 129, 129, 0.1);
+  border-radius: 4px;
+}
+
+.auth-submit {
+  background: #7c9ef5;
+  border: none;
+  border-radius: 6px;
+  color: #0d0d1a;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: #a0b8ff;
+}
+
+.auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

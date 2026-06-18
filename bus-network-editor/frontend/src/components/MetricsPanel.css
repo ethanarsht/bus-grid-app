@@ -80,6 +80,40 @@
   letter-spacing: 0.5px;
 }
 
+.metrics-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.metrics-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #888;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.metrics-tab.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+.metrics-tab:hover:not(.active) { color: #ccc; }
+
+.metrics-selection-label {
+  font-size: 11px;
+  color: #7c9ef5;
+  margin-bottom: 8px;
+}
+
 .metric-row {
   margin-bottom: 7px;
 }

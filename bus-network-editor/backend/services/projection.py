@@ -154,6 +154,32 @@ def _insertion_segments(
 # Public API
 # ---------------------------------------------------------------------------
 
+def _bridge_coords(
+    pred: str, succ: str,
+    route_id: str, dir_id: int,
+    next_stop: dict,
+    removed_stop_ids: set,
+    seg_coords: dict,
+) -> list | None:
+    """Walk GTFS coordinates from pred → ... → succ through removed stops."""
+    nxt_map = next_stop.get((route_id, dir_id), {})
+    coords: list = []
+    current = pred
+    while True:
+        nxt = nxt_map.get(current)
+        if nxt is None:
+            return None
+        sc = seg_coords.get((str(current), str(nxt), str(route_id), dir_id))
+        if sc is None:
+            return None
+        coords = coords + (list(sc) if not coords else list(sc[1:]))
+        current = nxt
+        if current == succ:
+            return coords
+        if current not in removed_stop_ids:
+            return None
+
+
 def apply_edits(
     baseline_stops_fc: dict[str, Any],
     baseline_segments_fc: dict[str, Any],
@@ -242,6 +268,12 @@ def apply_edits(
     #   If either side is a terminus, no bridge is needed there.
     removed_stop_ids = {sid for sid, op in touched.items() if op == "REMOVE"}
 
+    # Build coordinate lookup early so bridge builder can use it too
+    seg_coords: dict[tuple, list] = {}
+    for feat in baseline_segments_fc["features"]:
+        p = feat["properties"]
+        seg_coords[(str(p["stop_id1"]), str(p["stop_id2"]), str(p["route_id"]), p["direction_id"])] = feat["geometry"]["coordinates"]
+
     bridge_segments: list[dict] = []
 
     if removed_stop_ids:
@@ -313,15 +345,16 @@ def apply_edits(
                 t_in  = in_seg[key].get(removed_sid,  {}).get("properties", {}).get("traversals", 1)
                 t_out = out_seg[key].get(removed_sid, {}).get("properties", {}).get("traversals", 1)
                 route_id, dir_id = key
+                b_coords = _bridge_coords(
+                    immediate_pred, succ, route_id, dir_id,
+                    next_stop, removed_stop_ids, seg_coords,
+                ) or [
+                    [pred_stop_data["lon"], pred_stop_data["lat"]],
+                    [succ_stop_data["lon"],  succ_stop_data["lat"]],
+                ]
                 bridge_segments.append({
                     "type": "Feature",
-                    "geometry": {
-                        "type": "LineString",
-                        "coordinates": [
-                            [pred_stop_data["lon"], pred_stop_data["lat"]],
-                            [succ_stop_data["lon"],  succ_stop_data["lat"]],
-                        ],
-                    },
+                    "geometry": {"type": "LineString", "coordinates": b_coords},
                     "properties": {
                         "segment_id": f"{immediate_pred}-{succ}-{route_id}",
                         "stop_id1": immediate_pred,
@@ -356,7 +389,7 @@ def apply_edits(
             projected_segments.append(feat)
             continue
 
-        # Recompute geometry for moved/added endpoints
+        # Recompute geometry for moved endpoints, preserving intermediate GTFS coords
         stop1 = stops.get(sid1)
         stop2 = stops.get(sid2)
         if stop1 is None or stop2 is None:
@@ -366,17 +399,20 @@ def apply_edits(
         lat2, lon2 = stop2["lat"], stop2["lon"]
         dist_m = haversine_m(lat1, lon1, lat2, lon2)
 
+        orig_coords = feat["geometry"]["coordinates"]
+        if op1 == "MOVE" and op2 == "MOVE":
+            coords = [[lon1, lat1]] + orig_coords[1:-1] + [[lon2, lat2]]
+        elif op1 == "MOVE":
+            coords = [[lon1, lat1]] + orig_coords[1:]
+        elif op2 == "MOVE":
+            coords = orig_coords[:-1] + [[lon2, lat2]]
+        else:
+            coords = [[lon1, lat1], [lon2, lat2]]
+
         projected_segments.append({
             "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": [[lon1, lat1], [lon2, lat2]],
-            },
-            "properties": {
-                **p,
-                "distance_m": dist_m,
-                # traversals unchanged — come from the schedule, not geometry
-            },
+            "geometry": {"type": "LineString", "coordinates": coords},
+            "properties": {**p, "distance_m": dist_m},
         })
 
     projected_segments.extend(bridge_segments)

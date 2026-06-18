@@ -259,28 +259,38 @@ def _load_city(city_id: str, file_prefix: str) -> dict | None:
     }
 
 
-# Auto-discover all cities from *_stops.geojson files in data dir
-_city_cache: dict[str, dict] = {}
+# Discover available cities at startup without loading data
+_city_prefixes: dict[str, str] = {}
 for _stops_path in sorted(_DATA_DIR.glob("*_stops.geojson")):
     _city_id = _stops_path.stem[: -len("_stops")]
     _prefix = _CITY_FILE_OVERRIDES.get(_city_id, _city_id)
-    _data = _load_city(_city_id, _prefix)
-    if _data is not None:
-        _city_cache[_city_id] = _data
+    _seg = _DATA_DIR / f"{_prefix}_segments.geojson"
+    _rts = _DATA_DIR / f"{_prefix}_routes.json"
+    if _stops_path.exists() and _seg.exists() and _rts.exists():
+        _city_prefixes[_city_id] = _prefix
+
+_city_cache: dict[str, dict] = {}
 
 
 def get_city_baseline(city_id: str) -> dict | None:
-    return _city_cache.get(city_id)
+    if city_id in _city_cache:
+        return _city_cache[city_id]
+    prefix = _city_prefixes.get(city_id)
+    if prefix is None:
+        return None
+    data = _load_city(city_id, prefix)
+    if data is not None:
+        _city_cache[city_id] = data
+    return data
 
 
 def available_city_ids() -> list[str]:
-    return list(_city_cache.keys())
+    return list(_city_prefixes.keys())
 
 
-# Legacy module-level aliases for chicago_cta (used by projection service)
-_chicago = _city_cache.get("chicago_cta", {})
-baseline_stops_fc: dict = _chicago.get("stops", {"type": "FeatureCollection", "features": []})
-baseline_segments_fc: dict = _chicago.get("segments", {"type": "FeatureCollection", "features": []})
-routes_list: list = _chicago.get("routes", [])
-baseline_stop_pairs: list = _chicago.get("stop_pairs", [])
-baseline_merged_segments_fc: dict = _chicago.get("merged_segments", {"type": "FeatureCollection", "features": []})
+# Legacy module-level aliases — populated on first access
+baseline_stops_fc: dict = {"type": "FeatureCollection", "features": []}
+baseline_segments_fc: dict = {"type": "FeatureCollection", "features": []}
+routes_list: list = []
+baseline_stop_pairs: list = []
+baseline_merged_segments_fc: dict = {"type": "FeatureCollection", "features": []}

@@ -5,9 +5,10 @@ Loaded once at startup per city, never modified.
 
 import json
 import math
+import os
 from pathlib import Path
 
-_DATA_DIR = Path(__file__).parent / "data"
+_DATA_DIR = Path(os.environ.get("CITY_DATA_DIR", Path(__file__).parent / "data"))
 
 # Explicit overrides for legacy or non-standard filename prefixes
 _CITY_FILE_OVERRIDES: dict[str, str] = {}

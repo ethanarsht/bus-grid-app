@@ -22,4 +22,7 @@ RUN cd frontend && npm ci && npm run build
 # Expose port
 EXPOSE 10000
 
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]

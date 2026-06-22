@@ -49,6 +49,7 @@ export default function Landing() {
   const [activeTab, setActiveTab] = useState('official')
   const [mapsTab, setMapsTab] = useState('mine')
   const [creating, setCreating] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -100,6 +101,9 @@ export default function Landing() {
           <button className="landing-new-btn" onClick={() => setShowModal(true)}>
             <span className="landing-new-icon">+</span>
             <span>New Map</span>
+          </button>
+          <button className="landing-tutorial-btn" onClick={() => setShowTutorial(true)}>
+            ▶ Watch tutorial
           </button>
         </div>
 
@@ -217,6 +221,24 @@ export default function Landing() {
 
       {showAuthModal && (
         <AuthModal onClose={() => setShowAuthModal(false)} />
+      )}
+
+      {showTutorial && (
+        <div className="modal-backdrop" onClick={() => setShowTutorial(false)}>
+          <div className="modal tutorial-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Tutorial</div>
+              <button className="modal-close" onClick={() => setShowTutorial(false)}>✕</button>
+            </div>
+            <div className="tutorial-video-wrapper">
+              <video
+                controls
+                src="https://github.com/ethanarsht/bus-grid-app/releases/download/v1-tutorial/bus_app_tutorial.mp4"
+                style={{ width: '100%', borderRadius: '4px' }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
